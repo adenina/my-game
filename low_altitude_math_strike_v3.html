@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>低空突击：乘法任务</title>
+<style>
+:root{
+  --ink:#0f2740; --panel:#ffffffee; --blue:#0ea5e9; --navy:#0c4a6e;
+  --orange:#f97316; --red:#dc2626; --green:#16a34a; --yellow:#fde047;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:"Microsoft YaHei","Trebuchet MS",Arial,sans-serif;background:linear-gradient(#93c5fd,#dbeafe);color:var(--ink)}
+body{display:flex;justify-content:center;padding:12px}
+.app{width:min(1180px,100%)}
+h1{margin:0 0 5px;text-align:center;font-size:clamp(29px,5vw,53px);color:#082f49;text-shadow:0 3px 0 #fff;letter-spacing:2px}
+.subtitle{text-align:center;margin:0 0 10px;font-weight:800}
+.hud{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:9px}
+.card{background:var(--panel);border:3px solid white;border-radius:15px;padding:8px;text-align:center;box-shadow:0 5px 16px #082f4930}
+.card span{display:block;color:#64748b;font-size:12px;font-weight:800}
+.card strong{display:block;margin-top:3px;color:#0c4a6e;font-size:clamp(19px,3vw,29px)}
+.wrap{position:relative;overflow:hidden;border:5px solid white;border-radius:24px;background:#bfdbfe;box-shadow:0 17px 45px #0c4a6e66}
+canvas{display:block;width:100%;aspect-ratio:16/9;cursor:crosshair;touch-action:none}
+.banner{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:5;width:min(690px,94%);padding:7px 13px;background:#ffffffed;border:4px solid var(--yellow);border-radius:18px;text-align:center;pointer-events:none;box-shadow:0 6px 0 #ca8a0440}
+.banner .stage{font-size:12px;color:#64748b;font-weight:900}
+.banner .title{font-size:clamp(18px,3vw,29px);font-weight:900;color:#172554}
+.banner .msg{min-height:22px;font-weight:800;color:#334155}
+.action-panel{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:8;width:min(620px,92%);padding:12px;background:#ffffffee;border:4px solid #93c5fd;border-radius:18px;text-align:center;box-shadow:0 10px 25px #0f172a55}
+.action-panel.hidden{display:none}
+.question{font-size:clamp(27px,5vw,48px);font-weight:900;color:#172554;margin-bottom:9px}
+.answers{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.answer{border:none;border-radius:13px;padding:11px 5px;background:white;box-shadow:0 5px 0 #94a3b8;font-size:clamp(21px,3vw,34px);font-weight:900;cursor:pointer}
+.answer.correct{background:#bbf7d0;box-shadow:0 5px 0 #22c55e}
+.answer.wrong{background:#fecaca;box-shadow:0 5px 0 #ef4444}
+.launch{margin-top:10px;border:none;border-radius:14px;padding:12px 25px;background:#fb923c;color:white;box-shadow:0 6px 0 #c2410c;font-weight:900;font-size:20px;cursor:pointer}
+.launch:disabled{opacity:.45;cursor:not-allowed}
+.launch:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #c2410c}
+.overlay{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:18px;background:#020617b9}
+.overlay.hidden{display:none}
+.dialog{width:min(610px,96%);padding:23px;background:white;border:5px solid var(--yellow);border-radius:25px;text-align:center;box-shadow:0 18px 60px #0008}
+.dialog h2{margin:0 0 8px;font-size:clamp(29px,5vw,47px);color:#0c4a6e}
+.dialog p{line-height:1.75;margin:8px 0 15px}
+.big{display:none;font-size:50px;font-weight:900;color:#ea580c;margin:7px}
+button,select{font:inherit}
+.primary,.secondary{border:none;border-radius:13px;padding:10px 16px;font-weight:900;cursor:pointer}
+.primary{background:#fb923c;color:white;box-shadow:0 5px 0 #c2410c}
+.secondary{background:white;color:#0f172a;box-shadow:0 5px 0 #94a3b8}
+.controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;margin-top:12px;padding:10px;background:#ffffffd5;border-radius:17px}
+.controls label{font-weight:900}
+select{padding:7px 10px;border:2px solid #94a3b8;border-radius:10px;background:white;font-weight:800}
+.help{margin-top:11px;padding:12px 15px;background:#ffffffd8;border-radius:15px;line-height:1.65;font-size:14px}
+@media(max-width:720px){
+ body{padding:6px}.hud{grid-template-columns:repeat(3,1fr)}.banner{top:4px;padding:4px 8px}.banner .stage{display:none}.banner .msg{font-size:12px;min-height:17px}.action-panel{bottom:5px;padding:8px}.answers{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<main class="app">
+<h1>✈ 低空突击：乘法任务</h1>
+<p class="subtitle">缓慢低空飞行、精确发射、计算拦截</p>
+
+<section class="hud">
+  <div class="card"><span>当前阶段</span><strong id="stageHud">坦克区</strong></div>
+  <div class="card"><span>剩余目标</span><strong id="targetHud">5</strong></div>
+  <div class="card"><span>生命</span><strong id="lifeHud">❤❤❤</strong></div>
+  <div class="card"><span>得分</span><strong id="scoreHud">0</strong></div>
+  <div class="card"><span>最高分</span><strong id="highHud">0</strong></div>
+</section>
+
+<section class="wrap">
+<canvas id="game" width="1120" height="630" aria-label="低空乘法突击游戏"></canvas>
+
+<div class="banner">
+  <div class="stage" id="stageName">第一阶段：坦克区</div>
+  <div class="title" id="missionTitle">点击移动坦克，发射导弹</div>
+  <div class="msg" id="message">击毁5辆坦克后，继续飞往军事基地</div>
+</div>
+
+<div class="action-panel hidden" id="basePanel">
+  <div style="font-weight:900;color:#64748b">军事基地发射授权题</div>
+  <div class="question" id="baseQuestion">6 × 7 = ?</div>
+  <div class="answers" id="baseAnswers"></div>
+  <button class="launch" id="baseLaunch" disabled>🚀 发射导弹</button>
+</div>
+
+<div class="action-panel hidden" id="forestPanel">
+  <div style="font-weight:900;color:#64748b" id="forestLabel">来袭导弹上有算式，请先计算</div>
+  <div class="question" id="forestQuestion">8 × 6 = ?</div>
+  <div class="answers" id="forestAnswers"></div>
+  <button class="launch" id="droneLaunch" disabled>🛩️ 释放拦截无人机</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="dialog">
+    <h2 id="dialogTitle">低空突击：乘法任务</h2>
+    <p id="dialogText">
+      战斗机以低空、减速、准备降落的姿态前进。<br>
+      第一关击毁5辆移动坦克；第二关答对乘法题并按发射按钮摧毁军事基地；第三关进入树林，用拦截无人机击落导弹发射车射出的导弹。<br>
+      有算式的导弹必须先计算，没有算式的可以直接拦截。
+    </p>
+    <div class="big" id="bigResult">0</div>
+    <button class="primary" id="startBtn">开始任务</button>
+  </div>
+</div>
+</section>
+
+<section class="controls">
+  <label for="range">乘法范围：</label>
+  <select id="range">
+    <option value="5">2～5</option>
+    <option value="9" selected>2～9</option>
+    <option value="12">2～12</option>
+  </select>
+  <button class="secondary" id="soundBtn">🔊 声音：开</button>
+  <button class="primary" id="restartBtn">重新开始</button>
+</section>
+
+<section class="help">
+<strong>玩法：</strong>
+坦克区中直接点击移动坦克发射导弹；坦克被击毁后不会复活。到达军事基地后，先选择正确答案，再按“发射导弹”。树林中，每轮会有一枚来袭导弹：有算式就先答题，无算式则直接释放拦截无人机。
+</section>
+</main>
+
+<script>
+(() => {
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+const stageHud=document.getElementById('stageHud');
+const targetHud=document.getElementById('targetHud');
+const lifeHud=document.getElementById('lifeHud');
+const scoreHud=document.getElementById('scoreHud');
+const highHud=document.getElementById('highHud');
+const stageName=document.getElementById('stageName');
+const missionTitle=document.getElementById('missionTitle');
+const message=document.getElementById('message');
+const overlay=document.getElementById('overlay');
+const dialogTitle=document.getElementById('dialogTitle');
+const dialogText=document.getElementById('dialogText');
+const bigResult=document.getElementById('bigResult');
+const startBtn=document.getElementById('startBtn');
+const restartBtn=document.getElementById('restartBtn');
+const soundBtn=document.getElementById('soundBtn');
+const rangeEl=document.getElementById('range');
+const basePanel=document.getElementById('basePanel');
+const baseQuestion=document.getElementById('baseQuestion');
+const baseAnswers=document.getElementById('baseAnswers');
+const baseLaunch=document.getElementById('baseLaunch');
+const forestPanel=document.getElementById('forestPanel');
+const forestLabel=document.getElementById('forestLabel');
+const forestQuestion=document.getElementById('forestQuestion');
+const forestAnswers=document.getElementById('forestAnswers');
+const droneLaunch=document.getElementById('droneLaunch');
+
+let stage='intro';
+let score=0,lives=3;
+let highScore=Number(localStorage.getItem('lowAltitudeMathStrikeHighScore')||0);
+let soundOn=true;
+let last=performance.now();
+let scroll=0;
+let jet={x:300,y:215,vy:0};
+let tanks=[];
+let playerMissiles=[],explosions=[],enemyMissile=null,drone=null,smoke=[];
+let base={x:1250,destroyed:false};
+let baseQ=null,baseSelected=false;
+let forestRound=0,forestTotal=6,forestQ=null;
+let inputLocked=false;
+let transitionTimer=null;
+
+highHud.textContent=highScore;
+
+function resize(){
+ const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;
+ const w=Math.round(r.width*d),h=Math.round(r.height*d);
+ if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
+}
+function sx(v){return v*canvas.width/1120}
+function sy(v){return v*canvas.height/630}
+function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function beep(freq=440,dur=.08,type='sine',vol=.07){
+ if(!soundOn)return;
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;
+  const ac=beep.ac||(beep.ac=new AC());
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+dur);
+  o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+dur);
+ }catch(e){}
+}
+function updateHud(){
+ stageHud.textContent=stage==='tank'?'坦克区':stage==='base'?'军事基地':stage==='forest'?'树林拦截':'任务';
+ targetHud.textContent=stage==='tank'?tanks.filter(t=>t.alive).length:stage==='forest'?`${forestRound}/${forestTotal}`:stage==='base'?(base.destroyed?'0':'1'):'—';
+ lifeHud.textContent='❤'.repeat(lives)+'♡'.repeat(Math.max(0,3-lives));
+ scoreHud.textContent=score;
+ highHud.textContent=Math.max(highScore,score);
+}
+function reset(){
+ clearTimeout(transitionTimer);
+ stage='tank';score=0;lives=3;scroll=0;jet={x:300,y:215,vy:0};
+ playerMissiles=[];explosions=[];enemyMissile=null;drone=null;smoke=[];
+ base={x:1250,destroyed:false};baseQ=null;baseSelected=false;
+ forestRound=0;forestQ=null;inputLocked=false;
+ tanks=[
+  {x:180,y:500,dir:1,speed:.035,alive:true},
+  {x:390,y:530,dir:-1,speed:.042,alive:true},
+  {x:600,y:492,dir:1,speed:.032,alive:true},
+  {x:810,y:525,dir:-1,speed:.04,alive:true},
+  {x:1010,y:495,dir:1,speed:.036,alive:true}
+ ];
+ overlay.classList.add('hidden');bigResult.style.display='none';
+ basePanel.classList.add('hidden');forestPanel.classList.add('hidden');
+ stageName.textContent='第一阶段：坦克区';
+ missionTitle.textContent='点击移动坦克，发射导弹';
+ message.textContent='击毁5辆坦克后，它们不会复活';
+ updateHud();
+ beep(520,.08,'square');setTimeout(()=>beep(680,.08,'square'),90);
+}
+function addExplosion(x,y,r=10){
+ explosions.push({x,y,r,life:0});
+ for(let i=0;i<6;i++)smoke.push({x:x+rand(-12,12),y:y+rand(-8,8),vx:(Math.random()-.5)*.05,vy:-.04-Math.random()*.04,r:rand(5,10),life:0});
+}
+function shootTank(tank){
+ if(stage!=='tank'||inputLocked||!tank.alive)return;
+ inputLocked=true;
+ playerMissiles.push({x:jet.x+70,y:jet.y+28,tx:tank.x,ty:tank.y-15,p:0,type:'tank',target:tank});
+ beep(150,.1,'sawtooth');
+}
+function beginBaseTransition(){
+ inputLocked=true;
+ stageName.textContent='航行中';
+ missionTitle.textContent='坦克已经全部被摧毁';
+ message.textContent='战斗机继续低空前进，正在接近军事基地……';
+ transitionTimer=setTimeout(()=>{
+  stage='base';base.x=910;inputLocked=false;
+  stageName.textContent='第二阶段：军事基地';
+  missionTitle.textContent='先答题，再按发射按钮';
+  message.textContent='选择正确答案后才能获得导弹发射授权';
+  setupBaseQuestion();
+  basePanel.classList.remove('hidden');
+  updateHud();
+ },1800);
+}
+function makeOptions(ans,max){
+ const set=new Set([ans]);
+ const offs=[-12,-10,-9,-8,-6,-5,-4,-3,-2,-1,1,2,3,4,5,6,8,9,10,12];
+ while(set.size<4){
+  let v=ans+offs[rand(0,offs.length-1)];
+  if(v<1||v>max*max)v=rand(2,max)*rand(2,max);
+  set.add(v);
+ }
+ return [...set].sort(()=>Math.random()-.5);
+}
+function setupBaseQuestion(){
+ const m=Number(rangeEl.value),a=rand(2,m),b=rand(2,m),ans=a*b;
+ baseQ={a,b,ans};baseSelected=false;baseLaunch.disabled=true;
+ baseQuestion.textContent=`${a} × ${b} = ?`;
+ baseAnswers.innerHTML='';
+ makeOptions(ans,m).forEach(v=>{
+  const btn=document.createElement('button');btn.className='answer';btn.textContent=v;
+  btn.onclick=()=>{
+   if(baseSelected)return;
+   if(v===ans){
+    baseSelected=true;btn.classList.add('correct');baseLaunch.disabled=false;
+    message.textContent='回答正确！现在可以按“发射导弹”';
+    message.style.color='#15803d';beep(720,.08,'square');
+    [...baseAnswers.children].forEach(b=>b.disabled=true);
+   }else{
+    btn.classList.add('wrong');btn.disabled=true;score=Math.max(0,score-20);
+    message.textContent='答案不对，再算一次';message.style.color='#b91c1c';beep(180,.13,'square');updateHud();
+   }
+  };
+  baseAnswers.appendChild(btn);
+ });
+}
+baseLaunch.onclick=()=>{
+ if(stage!=='base'||!baseSelected||inputLocked)return;
+ inputLocked=true;baseLaunch.disabled=true;
+ playerMissiles.push({x:jet.x+70,y:jet.y+28,tx:base.x,ty:410,p:0,type:'base'});
+ beep(120,.13,'sawtooth');
+};
+function beginForest(){
+ stageName.textContent='航行中';
+ missionTitle.textContent='军事基地已被摧毁';
+ message.textContent='战斗机继续前进，进入树林……';
+ basePanel.classList.add('hidden');
+ transitionTimer=setTimeout(()=>{
+  stage='forest';forestRound=0;inputLocked=false;
+  stageName.textContent='第三阶段：树林拦截';
+  missionTitle.textContent='拦截导弹发射车的来袭导弹';
+  message.textContent='有算式先计算；没有算式直接拦截';
+  updateHud();startForestRound();
+ },1900);
+}
+function startForestRound(){
+ if(stage!=='forest')return;
+ if(forestRound>=forestTotal){finishWin();return}
+ forestRound++;inputLocked=false;drone=null;
+ const hasMath=Math.random()<.68;
+ const m=Number(rangeEl.value),a=rand(2,m),b=rand(2,m),ans=a*b;
+ forestQ={hasMath,a,b,ans};
+ enemyMissile={x:1040,y:455,tx:jet.x+30,ty:jet.y+5,p:0,speed:hasMath?.00017:.00020,active:true};
+ forestPanel.classList.remove('hidden');
+ forestAnswers.innerHTML='';
+ if(hasMath){
+  forestLabel.textContent='来袭导弹上有算式：先选正确答案';
+  forestQuestion.textContent=`${a} × ${b} = ?`;
+  droneLaunch.disabled=true;
+  makeOptions(ans,m).forEach(v=>{
+   const btn=document.createElement('button');btn.className='answer';btn.textContent=v;
+   btn.onclick=()=>{
+    if(inputLocked)return;
+    if(v===ans){
+     btn.classList.add('correct');droneLaunch.disabled=false;
+     forestLabel.textContent='计算正确，可以释放拦截无人机';
+     [...forestAnswers.children].forEach(b=>b.disabled=true);
+     beep(760,.08,'square');
+    }else{
+     btn.classList.add('wrong');btn.disabled=true;score=Math.max(0,score-15);
+     message.textContent='算错了，导弹还在接近！';message.style.color='#b91c1c';beep(170,.12,'square');updateHud();
+    }
+   };
+   forestAnswers.appendChild(btn);
+  });
+ }else{
+  forestLabel.textContent='这枚导弹没有算式，可以直接拦截';
+  forestQuestion.textContent='无算式';
+  droneLaunch.disabled=false;
+ }
+ updateHud();
+}
+droneLaunch.onclick=()=>{
+ if(stage!=='forest'||droneLaunch.disabled||inputLocked||!enemyMissile?.active)return;
+ inputLocked=true;droneLaunch.disabled=true;
+ drone={x:jet.x-5,y:jet.y+38,tx:enemyMissile.x,ty:enemyMissile.y,p:0};
+ beep(230,.08,'square');
+};
+function loseLife(){
+ lives--;updateHud();beep(60,.35,'sawtooth',.12);
+ addExplosion(jet.x+25,jet.y,24);
+ if(lives<=0){finishLoss();return}
+ message.textContent='战斗机被击中！下一枚导弹即将来袭';message.style.color='#b91c1c';
+ enemyMissile=null;forestPanel.classList.add('hidden');
+ transitionTimer=setTimeout(startForestRound,1000);
+}
+function finishWin(){
+ stage='done';forestPanel.classList.add('hidden');enemyMissile=null;drone=null;
+ score+=lives*200;
+ if(score>highScore){highScore=score;localStorage.setItem('lowAltitudeMathStrikeHighScore',String(highScore))}
+ updateHud();dialogTitle.textContent='全部任务完成！';
+ dialogText.innerHTML=`你击毁了5辆坦克、摧毁了军事基地，并完成了${forestTotal}轮树林导弹拦截。<br>生命奖励：<strong>${lives*200}</strong>分`;
+ bigResult.textContent=score;bigResult.style.display='block';startBtn.textContent='再执行一次';overlay.classList.remove('hidden');
+ beep(660,.11,'square');setTimeout(()=>beep(880,.16,'square'),130);
+}
+function finishLoss(){
+ stage='done';forestPanel.classList.add('hidden');enemyMissile=null;drone=null;
+ if(score>highScore){highScore=score;localStorage.setItem('lowAltitudeMathStrikeHighScore',String(highScore))}
+ updateHud();dialogTitle.textContent='任务失败';
+ dialogText.innerHTML=`战斗机被来袭导弹击中。<br>本轮得分：<strong>${score}</strong>`;
+ bigResult.textContent=score;bigResult.style.display='block';startBtn.textContent='重新出击';overlay.classList.remove('hidden');
+}
+function pointer(evt){
+ evt.preventDefault();
+ if(stage!=='tank'||inputLocked)return;
+ const r=canvas.getBoundingClientRect();
+ const cx=evt.touches?evt.touches[0].clientX:evt.clientX;
+ const cy=evt.touches?evt.touches[0].clientY:evt.clientY;
+ const x=(cx-r.left)*1120/r.width,y=(cy-r.top)*630/r.height;
+ const t=tanks.find(t=>t.alive&&Math.abs(x-t.x)<78&&y>t.y-65&&y<t.y+48);
+ if(t)shootTank(t);
+}
+canvas.addEventListener('click',pointer);
+canvas.addEventListener('touchstart',pointer,{passive:false});
+startBtn.onclick=reset;restartBtn.onclick=reset;
+soundBtn.onclick=()=>{soundOn=!soundOn;soundBtn.textContent=soundOn?'🔊 声音：开':'🔇 声音：关';if(soundOn)beep(650,.08)};
+
+function drawCloud(x,y,s){
+ ctx.save();ctx.translate(sx(x),sy(y));ctx.scale(sx(s),sy(s));
+ ctx.fillStyle='rgba(255,255,255,.78)';ctx.beginPath();
+ ctx.arc(-28,8,24,0,Math.PI*2);ctx.arc(0,-3,32,0,Math.PI*2);ctx.arc(34,9,24,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+function drawBackground(){
+ const sky=ctx.createLinearGradient(0,0,0,sy(430));sky.addColorStop(0,'#38bdf8');sky.addColorStop(.75,'#dbeafe');sky.addColorStop(1,'#fef3c7');
+ ctx.fillStyle=sky;ctx.fillRect(0,0,canvas.width,sy(430));
+ ctx.fillStyle='rgba(253,224,71,.85)';ctx.beginPath();ctx.arc(sx(960),sy(86),sy(36),0,Math.PI*2);ctx.fill();
+ drawCloud(150-scroll*.06,100,1);drawCloud(480-scroll*.04,145,.72);drawCloud(820-scroll*.05,110,.88);
+ if(stage==='forest'||stage==='done'){
+  ctx.fillStyle='#14532d';ctx.fillRect(0,sy(400),canvas.width,sy(230));
+  for(let x=-40;x<1180;x+=70){
+   const xx=((x-scroll*.35)%1190+1190)%1190;
+   ctx.fillStyle='#78350f';ctx.fillRect(sx(xx),sy(390),sx(11),sy(115));
+   ctx.fillStyle='#166534';ctx.beginPath();ctx.arc(sx(xx+5),sy(370),sy(45),0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#15803d';ctx.beginPath();ctx.arc(sx(xx-22),sy(395),sy(32),0,Math.PI*2);ctx.arc(sx(xx+30),sy(397),sy(31),0,Math.PI*2);ctx.fill();
+  }
+  ctx.fillStyle='#3f6212';ctx.fillRect(0,sy(520),canvas.width,sy(110));
+ }else{
+  ctx.fillStyle='#84cc16';ctx.fillRect(0,sy(425),canvas.width,sy(205));
+  ctx.fillStyle='#4d7c0f';ctx.fillRect(0,sy(560),canvas.width,sy(70));
+ }
+}
+function drawJet(){
+ jet.y=215+Math.sin(performance.now()*.0016)*12;
+ jet.x=300+Math.sin(performance.now()*.0008)*20;
+ ctx.save();ctx.translate(sx(jet.x),sy(jet.y));ctx.scale(canvas.width/1120,canvas.height/630);ctx.rotate(-.025);
+ ctx.fillStyle='#334155';ctx.strokeStyle='#0f172a';ctx.lineWidth=4;
+ ctx.beginPath();ctx.moveTo(0,-58);ctx.lineTo(25,-20);ctx.lineTo(110,8);ctx.lineTo(66,26);ctx.lineTo(30,17);ctx.lineTo(45,67);ctx.lineTo(12,48);ctx.lineTo(0,63);ctx.lineTo(-12,48);ctx.lineTo(-45,67);ctx.lineTo(-30,17);ctx.lineTo(-66,26);ctx.lineTo(-110,8);ctx.lineTo(-25,-20);ctx.closePath();ctx.fill();ctx.stroke();
+ ctx.fillStyle='#0ea5e9';ctx.beginPath();ctx.moveTo(0,-31);ctx.lineTo(11,-8);ctx.lineTo(7,12);ctx.lineTo(-7,12);ctx.lineTo(-11,-8);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(0,28,6,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#fb923c';ctx.beginPath();ctx.moveTo(-20,55);ctx.lineTo(-11,82);ctx.lineTo(-4,55);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(20,55);ctx.lineTo(11,82);ctx.lineTo(4,55);ctx.closePath();ctx.fill();
+ ctx.restore();
+}
+function drawTank(t){
+ if(!t.alive)return;
+ if(stage==='tank'){
+  t.x+=t.dir*t.speed*16.7;
+  if(t.x<90||t.x>1030)t.dir*=-1;
+ }
+ ctx.save();ctx.translate(sx(t.x),sy(t.y));ctx.scale(canvas.width/1120,canvas.height/630);
+ ctx.fillStyle='#3f6212';ctx.strokeStyle='#1a2e05';ctx.lineWidth=3;
+ ctx.beginPath();ctx.roundRect(-64,4,128,30,12);ctx.fill();ctx.stroke();
+ ctx.fillStyle='#1f2937';for(let i=-45;i<=45;i+=23){ctx.beginPath();ctx.arc(i,21,11,0,Math.PI*2);ctx.fill()}
+ ctx.fillStyle='#4d7c0f';ctx.beginPath();ctx.roundRect(-36,-27,72,36,8);ctx.fill();ctx.stroke();
+ ctx.fillStyle='#365314';ctx.beginPath();ctx.arc(0,-26,22,Math.PI,0);ctx.fill();ctx.stroke();
+ ctx.fillStyle='#2f3e12';ctx.fillRect(15,-31,62,7);ctx.strokeRect(15,-31,62,7);ctx.restore();
+}
+function drawBase(){
+ if(stage!=='base'&&stage!=='done')return;
+ if(base.destroyed)return;
+ base.x=Math.max(860,base.x-.25);
+ ctx.save();ctx.translate(sx(base.x),sy(460));ctx.scale(canvas.width/1120,canvas.height/630);
+ ctx.fillStyle='#64748b';ctx.strokeStyle='#1e293b';ctx.lineWidth=4;
+ ctx.fillRect(-100,-65,200,85);ctx.strokeRect(-100,-65,200,85);
+ ctx.fillStyle='#475569';ctx.fillRect(-55,-105,110,45);ctx.strokeRect(-55,-105,110,45);
+ ctx.fillStyle='#ef4444';ctx.beginPath();ctx.moveTo(20,-105);ctx.lineTo(20,-155);ctx.lineTo(70,-140);ctx.lineTo(20,-126);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#0f172a';ctx.fillRect(-18,-26,36,46);ctx.restore();
+}
+function drawLauncher(){
+ if(stage!=='forest')return;
+ ctx.save();ctx.translate(sx(980),sy(505));ctx.scale(canvas.width/1120,canvas.height/630);
+ ctx.fillStyle='#3f6212';ctx.strokeStyle='#1a2e05';ctx.lineWidth=3;ctx.fillRect(-65,-15,130,35);ctx.strokeRect(-65,-15,130,35);
+ ctx.fillStyle='#1f2937';ctx.beginPath();ctx.arc(-42,23,14,0,Math.PI*2);ctx.arc(42,23,14,0,Math.PI*2);ctx.fill();
+ ctx.save();ctx.translate(0,-17);ctx.rotate(-.52);ctx.fillStyle='#475569';ctx.fillRect(-8,-15,115,30);ctx.strokeRect(-8,-15,115,30);ctx.restore();ctx.restore();
+}
+function drawProjectiles(dt){
+ for(let i=playerMissiles.length-1;i>=0;i--){
+  const m=playerMissiles[i];m.p+=dt*.00118;const p=Math.min(1,m.p);
+  const x=m.x+(m.tx-m.x)*p,y=m.y+(m.ty-m.y)*p-100*Math.sin(Math.PI*p);
+  ctx.save();ctx.translate(sx(x),sy(y));ctx.scale(canvas.width/1120,canvas.height/630);ctx.fillStyle='#111827';ctx.beginPath();ctx.ellipse(0,0,14,5,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fde047';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-35,0);ctx.lineTo(-13,0);ctx.stroke();ctx.restore();
+  if(m.p>=1){
+   playerMissiles.splice(i,1);addExplosion(m.tx,m.ty,12);
+   if(m.type==='tank'){
+    m.target.alive=false;score+=100;updateHud();inputLocked=false;
+    message.textContent='坦克已被击毁，不会复活';message.style.color='#15803d';beep(720,.08,'square');
+    if(tanks.every(t=>!t.alive))beginBaseTransition();
+   }else if(m.type==='base'){
+    base.destroyed=true;score+=400;updateHud();message.textContent='军事基地已被摧毁！';message.style.color='#15803d';beep(80,.3,'sawtooth',.12);beginForest();
+   }
+  }
+ }
+ if(enemyMissile?.active){
+  enemyMissile.p+=dt*enemyMissile.speed;const p=Math.min(1,enemyMissile.p);
+  const x=enemyMissile.x+(enemyMissile.tx-enemyMissile.x)*p,y=enemyMissile.y+(enemyMissile.ty-enemyMissile.y)*p-80*Math.sin(Math.PI*p);
+  enemyMissile.cx=x;enemyMissile.cy=y;
+  ctx.save();ctx.translate(sx(x),sy(y));ctx.scale(canvas.width/1120,canvas.height/630);
+  ctx.fillStyle='#111827';ctx.beginPath();ctx.ellipse(0,0,18,7,-.3,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#fb923c';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(24,9);ctx.lineTo(45,20);ctx.stroke();
+  if(forestQ?.hasMath){ctx.fillStyle='#fff';ctx.strokeStyle='#0f172a';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(-47,-45,94,28,7);ctx.fill();ctx.stroke();ctx.fillStyle='#172554';ctx.font='900 16px Microsoft YaHei';ctx.textAlign='center';ctx.fillText(`${forestQ.a}×${forestQ.b}=?`,0,-25)}
+  ctx.restore();
+  if(enemyMissile.p>=1){enemyMissile.active=false;forestPanel.classList.add('hidden');loseLife()}
+ }
+ if(drone&&enemyMissile?.active){
+  drone.p+=dt*.00165;const p=Math.min(1,drone.p);drone.tx=enemyMissile.cx;drone.ty=enemyMissile.cy;
+  const x=drone.x+(drone.tx-drone.x)*p,y=drone.y+(drone.ty-drone.y)*p-45*Math.sin(Math.PI*p);
+  ctx.save();ctx.translate(sx(x),sy(y));ctx.scale(canvas.width/1120,canvas.height/630);ctx.fillStyle='#94a3b8';ctx.strokeStyle='#0f172a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(25,0);ctx.lineTo(-15,-12);ctx.lineTo(-7,0);ctx.lineTo(-15,12);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+  if(drone.p>=1){
+   addExplosion(enemyMissile.cx,enemyMissile.cy,16);enemyMissile.active=false;score+=forestQ.hasMath?180:120;updateHud();forestPanel.classList.add('hidden');
+   message.textContent=forestQ.hasMath?'计算正确，拦截成功！':'无算式导弹已直接拦截！';message.style.color='#15803d';beep(850,.1,'square');
+   transitionTimer=setTimeout(startForestRound,700);
+  }
+ }
+}
+function drawEffects(dt){
+ for(let i=explosions.length-1;i>=0;i--){
+  const e=explosions[i];e.life+=dt;e.r+=dt*.08;const a=Math.max(0,1-e.life/650);
+  ctx.save();ctx.translate(sx(e.x),sy(e.y));ctx.scale(canvas.width/1120,canvas.height/630);ctx.globalAlpha=a;
+  for(let j=0;j<16;j++){const ang=j*Math.PI*2/16;ctx.strokeStyle=j%2?'#f97316':'#fde047';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(Math.cos(ang)*e.r*.2,Math.sin(ang)*e.r*.2);ctx.lineTo(Math.cos(ang)*e.r,Math.sin(ang)*e.r);ctx.stroke()}
+  ctx.restore();if(e.life>650)explosions.splice(i,1);
+ }
+ for(let i=smoke.length-1;i>=0;i--){
+  const s=smoke[i];s.life+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.r+=dt*.009;
+  ctx.save();ctx.globalAlpha=Math.max(0,1-s.life/1300);ctx.fillStyle='#334155';ctx.beginPath();ctx.arc(sx(s.x),sy(s.y),sy(s.r),0,Math.PI*2);ctx.fill();ctx.restore();
+  if(s.life>1300)smoke.splice(i,1);
+ }
+}
+function animate(now){
+ resize();const dt=Math.min(34,now-last);last=now;scroll+=dt*.055;
+ ctx.clearRect(0,0,canvas.width,canvas.height);drawBackground();drawJet();tanks.forEach(drawTank);drawBase();drawLauncher();drawProjectiles(dt);drawEffects(dt);requestAnimationFrame(animate);
+}
+updateHud();requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>乘法海战队</title>
+  <style>
+    :root{
+      --sky1:#7dd3fc;
+      --sky2:#dbeafe;
+      --sea1:#0ea5e9;
+      --sea2:#075985;
+      --panel:#ffffffee;
+      --ink:#102a43;
+      --accent:#f97316;
+      --good:#16a34a;
+      --bad:#dc2626;
+      --yellow:#facc15;
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      min-height:100%;
+      font-family:"Trebuchet MS","Microsoft YaHei",Arial,sans-serif;
+      background:linear-gradient(#bfdbfe,#e0f2fe);
+      color:var(--ink);
+    }
+
+    body{
+      display:flex;
+      justify-content:center;
+      padding:16px;
+    }
+
+    .app{
+      width:min(1100px,100%);
+    }
+
+    .title{
+      margin:0 0 10px;
+      text-align:center;
+      font-size:clamp(28px,5vw,52px);
+      letter-spacing:2px;
+      color:#0c4a6e;
+      text-shadow:0 3px 0 #fff;
+    }
+
+    .subtitle{
+      text-align:center;
+      margin:0 0 14px;
+      font-size:clamp(14px,2.2vw,20px);
+    }
+
+    .topbar{
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:8px;
+      margin-bottom:10px;
+    }
+
+    .stat{
+      background:var(--panel);
+      border:3px solid #fff;
+      border-radius:16px;
+      padding:10px 8px;
+      text-align:center;
+      box-shadow:0 5px 15px #07598522;
+      min-height:68px;
+    }
+
+    .stat span{
+      display:block;
+      font-size:13px;
+      color:#486581;
+    }
+
+    .stat strong{
+      display:block;
+      margin-top:3px;
+      font-size:24px;
+      color:#0c4a6e;
+    }
+
+    .game-shell{
+      position:relative;
+      overflow:hidden;
+      border-radius:24px;
+      border:5px solid white;
+      box-shadow:0 14px 35px #0c4a6e55;
+      background:white;
+    }
+
+    canvas{
+      display:block;
+      width:100%;
+      aspect-ratio:16/9;
+      background:linear-gradient(var(--sky1),var(--sky2) 58%,var(--sea1) 58%,var(--sea2));
+      touch-action:none;
+    }
+
+    .question-box{
+      position:absolute;
+      top:18px;
+      left:50%;
+      transform:translateX(-50%);
+      min-width:min(480px,88%);
+      background:#ffffffec;
+      border:4px solid #fde047;
+      border-radius:20px;
+      padding:10px 18px;
+      text-align:center;
+      box-shadow:0 7px 0 #eab30855;
+      z-index:3;
+    }
+
+    .question-label{
+      font-size:14px;
+      color:#64748b;
+      font-weight:700;
+    }
+
+    .question{
+      font-size:clamp(30px,6vw,58px);
+      font-weight:900;
+      line-height:1.08;
+      color:#172554;
+      letter-spacing:3px;
+    }
+
+    .message{
+      min-height:28px;
+      margin-top:3px;
+      font-size:clamp(14px,2vw,19px);
+      font-weight:800;
+    }
+
+    .answers{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+      padding:12px;
+      background:#e0f2fe;
+    }
+
+    .answer{
+      border:none;
+      border-radius:18px;
+      padding:15px 8px;
+      font-size:clamp(24px,4vw,40px);
+      font-weight:900;
+      color:#0f172a;
+      background:white;
+      box-shadow:0 7px 0 #94a3b8;
+      cursor:pointer;
+      transition:transform .08s, box-shadow .08s, background .15s;
+      user-select:none;
+    }
+
+    .answer:hover{background:#fef9c3}
+    .answer:active{
+      transform:translateY(5px);
+      box-shadow:0 2px 0 #94a3b8;
+    }
+    .answer.correct{background:#bbf7d0; box-shadow:0 7px 0 #22c55e}
+    .answer.wrong{background:#fecaca; box-shadow:0 7px 0 #ef4444}
+
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    button,select{
+      font:inherit;
+    }
+
+    .primary,.secondary{
+      border:none;
+      border-radius:14px;
+      padding:11px 16px;
+      font-weight:800;
+      cursor:pointer;
+      box-shadow:0 5px 0 #334155;
+    }
+
+    .primary{
+      background:#fb923c;
+      color:white;
+      box-shadow:0 5px 0 #c2410c;
+    }
+
+    .secondary{
+      background:white;
+      color:#0f172a;
+    }
+
+    .settings{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      margin-top:10px;
+      padding:10px;
+      background:#ffffffaa;
+      border-radius:16px;
+    }
+
+    .settings label{
+      font-weight:700;
+    }
+
+    select{
+      padding:7px 10px;
+      border-radius:10px;
+      border:2px solid #94a3b8;
+      background:white;
+      font-weight:700;
+    }
+
+    .instructions{
+      margin:14px 0 0;
+      background:#ffffffcc;
+      border-radius:16px;
+      padding:12px 16px;
+      line-height:1.65;
+      font-size:14px;
+    }
+
+    .overlay{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:#0f172a99;
+      z-index:10;
+    }
+
+    .overlay.hidden{display:none}
+
+    .card{
+      width:min(520px,95%);
+      background:white;
+      border-radius:24px;
+      padding:24px;
+      text-align:center;
+      box-shadow:0 15px 50px #0005;
+      border:5px solid #fde047;
+    }
+
+    .card h2{
+      margin:0 0 10px;
+      font-size:clamp(28px,5vw,45px);
+      color:#0c4a6e;
+    }
+
+    .card p{
+      line-height:1.7;
+    }
+
+    .big-score{
+      font-size:52px;
+      font-weight:900;
+      color:#ea580c;
+      margin:8px 0;
+    }
+
+    @media(max-width:700px){
+      body{padding:8px}
+      .topbar{grid-template-columns:repeat(3,1fr)}
+      .answers{grid-template-columns:repeat(2,1fr)}
+      .stat:nth-child(4),.stat:nth-child(5){grid-column:auto}
+      .question-box{top:8px;padding:6px 12px}
+      .question-label{display:none}
+      .message{min-height:20px;font-size:13px}
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1 class="title">⚓ 乘法海战队 ✈️</h1>
+    <p class="subtitle">算对乘法题，军舰就会发射炮弹，击落来袭小飞机！</p>
+
+    <section class="topbar">
+      <div class="stat"><span>得分</span><strong id="score">0</strong></div>
+      <div class="stat"><span>连击</span><strong id="streak">0</strong></div>
+      <div class="stat"><span>生命</span><strong id="lives">❤️❤️❤️</strong></div>
+      <div class="stat"><span>时间</span><strong id="time">60</strong></div>
+      <div class="stat"><span>最高分</span><strong id="highScore">0</strong></div>
+    </section>
+
+    <section class="game-shell">
+      <canvas id="game" width="960" height="540" aria-label="乘法海战游戏画面"></canvas>
+
+      <div class="question-box">
+        <div class="question-label">计算正确答案，锁定目标</div>
+        <div class="question" id="question">准备出发</div>
+        <div class="message" id="message">点击“开始游戏”</div>
+      </div>
+
+      <div class="answers" id="answers">
+        <button class="answer" disabled>?</button>
+        <button class="answer" disabled>?</button>
+        <button class="answer" disabled>?</button>
+        <button class="answer" disabled>?</button>
+      </div>
+
+      <div class="overlay" id="overlay">
+        <div class="card">
+          <h2 id="overlayTitle">乘法海战队</h2>
+          <p id="overlayText">
+            每答对一道乘法题，军舰就会发射炮弹。<br>
+            答错三次会损失一颗生命。准备好了吗？
+          </p>
+          <div class="big-score" id="finalScore" style="display:none">0</div>
+          <button class="primary" id="overlayStart">开始游戏</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="settings">
+      <label for="range">口诀范围：</label>
+      <select id="range">
+        <option value="5">2～5 的乘法</option>
+        <option value="9" selected>2～9 的乘法</option>
+        <option value="12">2～12 的乘法</option>
+      </select>
+
+      <label for="duration">游戏时间：</label>
+      <select id="duration">
+        <option value="60" selected>60 秒</option>
+        <option value="90">90 秒</option>
+        <option value="120">120 秒</option>
+      </select>
+
+      <button class="secondary" id="soundBtn">🔊 声音：开</button>
+      <button class="primary" id="restartBtn">重新开始</button>
+    </div>
+
+    <div class="instructions">
+      <strong>玩法：</strong>
+      点击正确答案，或按键盘 1～4 选择对应按钮。答对后会发射炮弹；连续答对可获得额外分数。
+      每道题最多答错三次。游戏结束后会自动保存本机最高分。
+    </div>
+  </main>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const scoreEl = document.getElementById('score');
+  const streakEl = document.getElementById('streak');
+  const livesEl = document.getElementById('lives');
+  const timeEl = document.getElementById('time');
+  const highScoreEl = document.getElementById('highScore');
+  const questionEl = document.getElementById('question');
+  const messageEl = document.getElementById('message');
+  const answersEl = document.getElementById('answers');
+  const rangeEl = document.getElementById('range');
+  const durationEl = document.getElementById('duration');
+  const soundBtn = document.getElementById('soundBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayText = document.getElementById('overlayText');
+  const overlayStart = document.getElementById('overlayStart');
+  const finalScore = document.getElementById('finalScore');
+
+  const answerButtons = [...document.querySelectorAll('.answer')];
+
+  let running = false;
+  let score = 0;
+  let streak = 0;
+  let lives = 3;
+  let timeLeft = 60;
+  let wrongThisQuestion = 0;
+  let current = {a:2,b:2,answer:4};
+  let timerId = null;
+  let soundOn = true;
+  let highScore = Number(localStorage.getItem('multiplicationBattleshipHighScore') || 0);
+
+  let plane = {x: 780, y: 180, speed: 0.45, hit:false};
+  let shell = null;
+  let explosion = null;
+  let clouds = [
+    {x:120,y:95,s:1.0},{x:430,y:145,s:.72},{x:760,y:70,s:.9}
+  ];
+  let waves = 0;
+  let lastTime = performance.now();
+
+  highScoreEl.textContent = highScore;
+
+  function resizeCanvasForDisplay(){
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    const desiredW = Math.round(rect.width * ratio);
+    const desiredH = Math.round(rect.height * ratio);
+    if(canvas.width !== desiredW || canvas.height !== desiredH){
+      canvas.width = desiredW;
+      canvas.height = desiredH;
+    }
+  }
+
+  function sx(v){ return v * canvas.width / 960; }
+  function sy(v){ return v * canvas.height / 540; }
+
+  function beep(freq=440, duration=.08, type='sine'){
+    if(!soundOn) return;
+    try{
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ac = beep.ac || (beep.ac = new AudioCtx());
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(.08, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.001, ac.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start();
+      osc.stop(ac.currentTime + duration);
+    }catch(e){}
+  }
+
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+  function generateQuestion(){
+    wrongThisQuestion = 0;
+    const max = Number(rangeEl.value);
+    const a = rand(2,max);
+    const b = rand(2,max);
+    current = {a,b,answer:a*b};
+    questionEl.textContent = `${a} × ${b} = ?`;
+    messageEl.textContent = '选择正确答案，准备开炮！';
+    messageEl.style.color = '#334155';
+
+    const options = new Set([current.answer]);
+    while(options.size < 4){
+      const offsetChoices = [-12,-10,-9,-8,-6,-5,-4,-3,-2,-1,1,2,3,4,5,6,8,9,10,12];
+      let candidate = current.answer + offsetChoices[rand(0,offsetChoices.length-1)];
+      if(candidate <= 0 || candidate > 144) candidate = rand(4,max*max);
+      options.add(candidate);
+    }
+    const shuffled = [...options].sort(() => Math.random()-.5);
+    answerButtons.forEach((btn,i)=>{
+      btn.textContent = shuffled[i];
+      btn.disabled = false;
+      btn.classList.remove('correct','wrong');
+    });
+
+    plane.x = 820;
+    plane.y = rand(135,250);
+    plane.speed = Math.min(1.15, .42 + score/900);
+    plane.hit = false;
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = score;
+    streakEl.textContent = streak;
+    livesEl.textContent = '❤️'.repeat(lives) + '🖤'.repeat(Math.max(0,3-lives));
+    timeEl.textContent = timeLeft;
+    highScoreEl.textContent = Math.max(highScore,score);
+  }
+
+  function startGame(){
+    running = true;
+    score = 0;
+    streak = 0;
+    lives = 3;
+    wrongThisQuestion = 0;
+    timeLeft = Number(durationEl.value);
+    shell = null;
+    explosion = null;
+    overlay.classList.add('hidden');
+    finalScore.style.display = 'none';
+    answerButtons.forEach(b=>b.disabled=false);
+    updateHUD();
+    generateQuestion();
+    clearInterval(timerId);
+    timerId = setInterval(()=>{
+      if(!running) return;
+      timeLeft--;
+      updateHUD();
+      if(timeLeft <= 0) endGame('时间到！');
+    },1000);
+    beep(523,.1,'square');
+  }
+
+  function endGame(reason){
+    running = false;
+    clearInterval(timerId);
+    answerButtons.forEach(b=>b.disabled=true);
+    if(score > highScore){
+      highScore = score;
+      localStorage.setItem('multiplicationBattleshipHighScore', String(highScore));
+    }
+    updateHUD();
+    overlayTitle.textContent = reason;
+    overlayText.innerHTML = `本轮得分：<strong>${score}</strong><br>最高连击：继续挑战，争取更高分！`;
+    finalScore.textContent = score;
+    finalScore.style.display = 'block';
+    overlayStart.textContent = '再玩一次';
+    overlay.classList.remove('hidden');
+    questionEl.textContent = '任务完成';
+    messageEl.textContent = '再接再厉，乘法小舰长！';
+    beep(220,.2,'triangle');
+  }
+
+  function fire(){
+    shell = {
+      x:225, y:360,
+      tx:plane.x, ty:plane.y+18,
+      progress:0
+    };
+    beep(110,.1,'sawtooth');
+  }
+
+  function correctAnswer(button){
+    answerButtons.forEach(b=>b.disabled=true);
+    button.classList.add('correct');
+    streak++;
+    const bonus = Math.min(20, Math.floor(streak/3)*2);
+    score += 10 + bonus;
+    messageEl.textContent = streak >= 3 ? `命中！连击 ${streak}，奖励加分！` : '回答正确，开炮！';
+    messageEl.style.color = '#15803d';
+    updateHUD();
+    fire();
+  }
+
+  function wrongAnswer(button){
+    wrongThisQuestion++;
+    streak = 0;
+    button.classList.add('wrong');
+    button.disabled = true;
+    messageEl.textContent = `再想一想：${current.a} × ${current.b}`;
+    messageEl.style.color = '#b91c1c';
+    updateHUD();
+    beep(180,.12,'square');
+
+    if(wrongThisQuestion >= 3){
+      lives--;
+      answerButtons.forEach(b=>b.disabled=true);
+      messageEl.textContent = `正确答案是 ${current.answer}，下一题继续加油！`;
+      updateHUD();
+      if(lives <= 0){
+        setTimeout(()=>endGame('军舰需要返航'),700);
+      }else{
+        setTimeout(generateQuestion,900);
+      }
+    }
+  }
+
+  function submitAnswer(value, button=null){
+    if(!running || shell) return;
+    const numeric = Number(value);
+    const targetBtn = button || answerButtons.find(b=>Number(b.textContent)===numeric);
+    if(numeric === current.answer){
+      correctAnswer(targetBtn);
+    }else if(targetBtn){
+      wrongAnswer(targetBtn);
+    }
+  }
+
+  answerButtons.forEach(btn=>{
+    btn.addEventListener('click',()=>submitAnswer(btn.textContent,btn));
+  });
+
+  document.addEventListener('keydown',e=>{
+    if(!running || shell) return;
+    if(['1','2','3','4'].includes(e.key)){
+      const btn = answerButtons[Number(e.key)-1];
+      if(btn && !btn.disabled) submitAnswer(btn.textContent,btn);
+    }
+  });
+
+  overlayStart.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', startGame);
+
+  soundBtn.addEventListener('click',()=>{
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? '🔊 声音：开' : '🔇 声音：关';
+    if(soundOn) beep(660,.08,'sine');
+  });
+
+  function drawCloud(x,y,s){
+    ctx.save();
+    ctx.translate(sx(x),sy(y));
+    ctx.scale(sx(s),sy(s));
+    ctx.fillStyle='rgba(255,255,255,.86)';
+    ctx.beginPath();
+    ctx.arc(0,10,22,0,Math.PI*2);
+    ctx.arc(25,0,28,0,Math.PI*2);
+    ctx.arc(54,12,21,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPlane(x,y){
+    ctx.save();
+    ctx.translate(sx(x),sy(y));
+    ctx.scale(canvas.width/960,canvas.height/540);
+    ctx.fillStyle = plane.hit ? '#f97316' : '#e5e7eb';
+    ctx.strokeStyle='#334155';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(-48,0);
+    ctx.lineTo(25,-6);
+    ctx.lineTo(48,3);
+    ctx.lineTo(25,10);
+    ctx.lineTo(-48,8);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#94a3b8';
+    ctx.beginPath();
+    ctx.moveTo(-3,4);
+    ctx.lineTo(-26,30);
+    ctx.lineTo(10,8);
+    ctx.closePath();
+    ctx.fill();ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-5,2);
+    ctx.lineTo(-27,-24);
+    ctx.lineTo(13,-2);
+    ctx.closePath();
+    ctx.fill();ctx.stroke();
+    ctx.fillStyle='#0f172a';
+    ctx.beginPath(); ctx.arc(30,2,4,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawShip(){
+    const X=sx(180),Y=sy(385);
+    const scaleX=canvas.width/960, scaleY=canvas.height/540;
+    ctx.save();
+    ctx.translate(X,Y);
+    ctx.scale(scaleX,scaleY);
+
+    ctx.fillStyle='#334155';
+    ctx.strokeStyle='#0f172a';
+    ctx.lineWidth=4;
+    ctx.beginPath();
+    ctx.moveTo(-110,15);
+    ctx.lineTo(115,15);
+    ctx.lineTo(78,58);
+    ctx.lineTo(-78,58);
+    ctx.closePath();
+    ctx.fill();ctx.stroke();
+
+    ctx.fillStyle='#64748b';
+    ctx.fillRect(-48,-18,95,34);
+    ctx.strokeRect(-48,-18,95,34);
+
+    ctx.fillStyle='#94a3b8';
+    ctx.fillRect(-10,-55,42,38);
+    ctx.strokeRect(-10,-55,42,38);
+
+    ctx.fillStyle='#475569';
+    ctx.fillRect(18,-78,7,24);
+    ctx.beginPath();
+    ctx.arc(21,-80,15,Math.PI,0);
+    ctx.fill();ctx.stroke();
+
+    ctx.fillStyle='#1f2937';
+    ctx.fillRect(35,-29,48,9);
+    ctx.beginPath();
+    ctx.arc(34,-25,13,0,Math.PI*2);
+    ctx.fill();ctx.stroke();
+
+    ctx.fillStyle='#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(24,-70);
+    ctx.lineTo(24,-108);
+    ctx.lineTo(67,-96);
+    ctx.lineTo(24,-84);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle='#facc15';
+    ctx.beginPath();
+    ctx.arc(-72,26,6,0,Math.PI*2);
+    ctx.arc(-48,26,6,0,Math.PI*2);
+    ctx.arc(-24,26,6,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawSea(){
+    const horizon = sy(314);
+    const grad = ctx.createLinearGradient(0,horizon,0,canvas.height);
+    grad.addColorStop(0,'#0ea5e9');
+    grad.addColorStop(1,'#075985');
+    ctx.fillStyle=grad;
+    ctx.fillRect(0,horizon,canvas.width,canvas.height-horizon);
+
+    ctx.strokeStyle='rgba(255,255,255,.65)';
+    ctx.lineWidth=Math.max(1,sy(2));
+    for(let row=0;row<6;row++){
+      ctx.beginPath();
+      const yy=horizon+sy(18+row*35);
+      for(let x=-40;x<1000;x+=48){
+        const xx=sx(x)+((waves*18+row*9)%sx(48));
+        ctx.moveTo(xx,yy);
+        ctx.quadraticCurveTo(xx+sx(12),yy-sy(7),xx+sx(24),yy);
+        ctx.quadraticCurveTo(xx+sx(36),yy+sy(7),xx+sx(48),yy);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawShell(){
+    if(!shell) return;
+    const p=shell.progress;
+    const startX=225, startY=360;
+    const targetX=shell.tx, targetY=shell.ty;
+    const x=startX+(targetX-startX)*p;
+    const arcY=startY+(targetY-startY)*p-150*Math.sin(Math.PI*p);
+
+    ctx.save();
+    ctx.translate(sx(x),sy(arcY));
+    ctx.scale(canvas.width/960,canvas.height/540);
+    ctx.fillStyle='#111827';
+    ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fef08a';
+    ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(-22,15);ctx.lineTo(-3,3);ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawExplosion(){
+    if(!explosion) return;
+    const r=explosion.radius;
+    ctx.save();
+    ctx.translate(sx(explosion.x),sy(explosion.y));
+    ctx.scale(canvas.width/960,canvas.height/540);
+    for(let i=0;i<16;i++){
+      const ang=i*Math.PI*2/16;
+      const len=r*(.7+(i%3)*.18);
+      ctx.strokeStyle=i%2?'#fb923c':'#fde047';
+      ctx.lineWidth=6;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang)*r*.25,Math.sin(ang)*r*.25);
+      ctx.lineTo(Math.cos(ang)*len,Math.sin(ang)*len);
+      ctx.stroke();
+    }
+    ctx.fillStyle='#fff7ed';
+    ctx.beginPath();ctx.arc(0,0,r*.42,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+
+  function animate(now){
+    resizeCanvasForDisplay();
+    const dt=Math.min(32,now-lastTime);
+    lastTime=now;
+    waves += dt*.002;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const sky = ctx.createLinearGradient(0,0,0,sy(315));
+    sky.addColorStop(0,'#7dd3fc');
+    sky.addColorStop(1,'#dbeafe');
+    ctx.fillStyle=sky;
+    ctx.fillRect(0,0,canvas.width,sy(315));
+
+    ctx.fillStyle='rgba(254,240,138,.9)';
+    ctx.beginPath();ctx.arc(sx(835),sy(72),sy(34),0,Math.PI*2);ctx.fill();
+
+    clouds.forEach(c=>{
+      c.x -= .015*dt;
+      if(c.x < -100) c.x=1040;
+      drawCloud(c.x,c.y,c.s);
+    });
+
+    drawSea();
+    drawShip();
+
+    if(running && !plane.hit && !shell){
+      plane.x -= plane.speed*dt*.06;
+      if(plane.x < 300){
+        plane.x = 820;
+        plane.y = rand(135,250);
+        messageEl.textContent = '飞机靠近了，快选择答案！';
+        messageEl.style.color='#b45309';
+      }
+    }
+
+    drawPlane(plane.x,plane.y);
+    drawShell();
+    drawExplosion();
+
+    if(shell){
+      shell.progress += dt*.00165;
+      if(shell.progress >= 1){
+        plane.hit=true;
+        explosion={x:plane.x,y:plane.y,radius:8,life:0};
+        shell=null;
+        beep(720,.08,'square');
+        setTimeout(()=>{
+          if(running) generateQuestion();
+        },500);
+      }
+    }
+
+    if(explosion){
+      explosion.life += dt;
+      explosion.radius += dt*.08;
+      if(explosion.life > 420) explosion=null;
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  updateHUD();
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>
